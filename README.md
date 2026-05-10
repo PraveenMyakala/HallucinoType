@@ -235,20 +235,6 @@ Rule-based detectors run first (fast, no cost). The LLM judge handles semantical
 - [ ] `v0.3` Evaluation vs binary baselines (Vectara HHEM, SelfCheckGPT)
 - [ ] `v0.4` Attribution: trace hallucination type to training data patterns
 - [ ] `v0.5` LangChain / LlamaIndex evaluation callbacks
-- [ ] `v1.0` Paper + arXiv release
-
----
-
-## Citation
-
-```bibtex
-@article{myakala2026hallucinotype,
-  title={HallucinoType: A Taxonomy and Detection Framework for LLM Hallucination Patterns},
-  author={Myakala, Praveen Kumar and Agrawal, Manan},
-  journal={arXiv preprint},
-  year={2026}
-}
-```
 
 ---
 
