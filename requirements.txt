@@ -1,0 +1,5 @@
+anthropic>=0.25.0
+openai>=1.30.0
+spacy>=3.7.0
+dateparser>=1.2.0
+pydantic>=2.0.0
