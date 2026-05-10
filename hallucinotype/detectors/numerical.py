@@ -38,7 +38,7 @@ class NumericSpan:
 # Matches: 3.5%, $1.2 billion, 47, 2,400, 1.5M, etc.
 NUMBER_RE = re.compile(
     r'(?P<currency>\$|€|£)?'
-    r'(?P<number>\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)'
+    r'(?P<number>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)'
     r'\s*(?P<suffix>million|billion|trillion|thousand|M|B|K|%)?',
     re.IGNORECASE
 )

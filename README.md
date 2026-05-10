@@ -25,7 +25,7 @@ HallucinoType tells you *what kind* — which changes how you fix it.
 ## Setup
 
 ```bash
-git clone https://github.com/your-username/hallucinotype.git
+git clone https://github.com/PraveenMyakala/HallucinoType.git
 cd hallucinotype
 
 python -m venv .venv
