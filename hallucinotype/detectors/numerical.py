@@ -59,8 +59,11 @@ def _parse_number(raw: str, number: str, suffix: str) -> float:
 
 def _context_window(text: str, start: int, end: int, words: int = 8) -> str:
     """Extract N words before and after a span."""
-    before = text[max(0, start - 60):start].split()[-words:]
-    after = text[end:end + 60].split()[:words]
+    # Extract slightly more text, discard the potentially truncated boundary token
+    before_tokens = text[max(0, start - 80):start].split()
+    before = before_tokens[1:][-words:] if len(before_tokens) > 1 else before_tokens[-words:]
+    after_tokens = text[end:end + 80].split()
+    after = after_tokens[:-1][:words] if len(after_tokens) > 1 else after_tokens[:words]
     return " ".join(before + after).lower()
 
 
