@@ -138,7 +138,7 @@ def _parse_judge_response(raw: str, claim: str) -> tuple[list[Evidence], str]:
             except ValueError:
                 continue
 
-            span_text = det.get("span", "")
+            span_text = det.get("span") or ""
             start, end = None, None
             if span_text:
                 idx = claim.find(span_text)
