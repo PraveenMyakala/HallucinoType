@@ -7,6 +7,7 @@ Run with: pytest tests/ -v
 """
 
 import pytest
+from hallucinotype import __version__
 from hallucinotype.taxonomy import HallucinationType, HallucinationSeverity
 from hallucinotype.detectors.temporal import TemporalConfusionDetector, extract_years
 from hallucinotype.detectors.numerical import NumericalDistortionDetector, extract_numerics
@@ -374,7 +375,7 @@ class TestCLI:
     def test_version_flag(self):
         rc, out, err = self._run("--version")
         assert rc == 0
-        assert "0.1.0" in (out + err)
+        assert __version__ in (out + err)
 
     def test_help_shows_subcommands(self):
         rc, out, _ = self._run("--help")
