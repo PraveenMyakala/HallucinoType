@@ -7,7 +7,7 @@ HallucinoType tells you *what kind* — which changes how you fix it.
 
 [![PyPI](https://img.shields.io/pypi/v/hallucinotype)](https://pypi.org/project/hallucinotype/)
 [![CI](https://github.com/PraveenMyakala/HallucinoType/actions/workflows/ci.yml/badge.svg)](https://github.com/PraveenMyakala/HallucinoType/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 
 ---
@@ -314,4 +314,4 @@ git push origin v0.X.0               # triggers pipeline again
 
 ## License
 
-MIT
+Apache 2.0 — see [LICENSE](LICENSE) for details.

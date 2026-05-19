@@ -24,8 +24,9 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Markdown files — keep only README.md
+# Markdown files — keep only repo essentials
 *.md
 !README.md
+!SECURITY.md
 
 output.txt
