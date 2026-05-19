@@ -170,6 +170,7 @@ class EntitySubstitutionDetector(BaseDetector):
                 confidence = type_weight * (1.0 - similarity)
                 if confidence >= self.confidence_threshold:
                     evidence.append(Evidence(
+                        hallucination_type=HallucinationType.ENTITY_SUBSTITUTION,
                         source="EntitySubstitutionDetector",
                         description=(
                             f"'{ent_text}' in claim closely resembles '{best_match}' "

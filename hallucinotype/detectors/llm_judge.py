@@ -87,6 +87,7 @@ def _call_anthropic(prompt_messages: list[dict], model: str) -> str:
     response = client.messages.create(
         model=model,
         max_tokens=1024,
+        temperature=0.0,
         system=SYSTEM_PROMPT,
         messages=prompt_messages,
     )
@@ -117,7 +118,7 @@ def _parse_judge_response(raw: str, claim: str) -> tuple[list[Evidence], str]:
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError:
-        match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+        match = re.search(r'\{.*?\}', cleaned, re.DOTALL)
         if match:
             try:
                 data = json.loads(match.group())
