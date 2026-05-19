@@ -178,6 +178,7 @@ class NumericalDistortionDetector(BaseDetector):
 
                 if confidence >= self.confidence_threshold:
                     evidence.append(Evidence(
+                        hallucination_type=HallucinationType.NUMERICAL_DISTORTION,
                         source="NumericalDistortionDetector",
                         description=(
                             f"Claim uses '{cn.raw}' (~{cn.value:,.0f}) but context "

@@ -82,6 +82,7 @@ class Evidence(BaseModel):
     Detectors attach evidence to explain *why* they flagged something,
     making outputs auditable and useful for downstream analysis.
     """
+    hallucination_type: HallucinationType
     source: str
     description: str
     span: Optional[tuple[int, int]] = None

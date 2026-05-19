@@ -139,6 +139,7 @@ class EntitySubstitutionDetector(BaseDetector):
                 # Entity type not in context at all — weaker signal
                 confidence = ENTITY_TYPE_WEIGHTS.get(ent_type, 0.3) * 0.5
                 evidence.append(Evidence(
+                    hallucination_type=HallucinationType.ENTITY_SUBSTITUTION,
                     source="EntitySubstitutionDetector",
                     description=(
                         f"Entity '{ent_text}' ({ent_type}) appears in claim "
@@ -192,6 +193,7 @@ class EntitySubstitutionDetector(BaseDetector):
         for name in claim_names:
             if name.lower() not in context_lower and len(name) > 3:
                 evidence.append(Evidence(
+                    hallucination_type=HallucinationType.ENTITY_SUBSTITUTION,
                     source="EntitySubstitutionDetector(regex)",
                     description=(
                         f"Proper noun '{name}' in claim not found in context."

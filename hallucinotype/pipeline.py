@@ -18,8 +18,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
-import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Optional
@@ -74,27 +72,17 @@ def _infer_severity(h_type: HallucinationType, confidence: float) -> Hallucinati
 # ---------------------------------------------------------------------------
 
 def _aggregate_evidence(
-    all_evidence: list[tuple[HallucinationType, Evidence]],
-    judge_detected_types: dict[HallucinationType, float],
+    all_evidence: list[Evidence],
 ) -> tuple[dict[HallucinationType, float], float, Optional[HallucinationType]]:
     """
     Combine evidence from all detectors into per-type confidence scores.
-
-    For rule-based detectors: confidence = max evidence confidence for that type.
-    For LLM judge: confidence = evidence confidence directly.
 
     Overall hallucination probability = 1 - product(1 - p_i) across all types.
     """
     type_confidences: dict[HallucinationType, list[float]] = {}
 
-    for h_type, ev in all_evidence:
-        if h_type not in type_confidences:
-            type_confidences[h_type] = []
-        type_confidences[h_type].append(ev.confidence)
-
-    for h_type, conf in judge_detected_types.items():
-        if h_type not in type_confidences:
-            type_confidences[h_type] = [conf]
+    for ev in all_evidence:
+        type_confidences.setdefault(ev.hallucination_type, []).append(ev.confidence)
 
     detected: dict[HallucinationType, float] = {
         t: max(confs) for t, confs in type_confidences.items()
@@ -218,59 +206,23 @@ class HallucinoTypePipeline:
         Returns:
             HallucinationFingerprint with typed detections.
         """
-        all_evidence: list[tuple[HallucinationType, Evidence]] = []
-        judge_detected_types: dict[HallucinationType, float] = {}
+        all_evidence: list[Evidence] = []
         judge_response: Optional[str] = None
 
-        detector_type_map = {
-            EntitySubstitutionDetector: HallucinationType.ENTITY_SUBSTITUTION,
-            TemporalConfusionDetector: HallucinationType.TEMPORAL_CONFUSION,
-            NumericalDistortionDetector: HallucinationType.NUMERICAL_DISTORTION,
-        }
-
         for detector in self._detectors:
-            h_type = detector_type_map.get(type(detector), detector.detects)
             try:
-                evidence_list = detector.detect(claim, context)
-                for ev in evidence_list:
-                    all_evidence.append((h_type, ev))
+                all_evidence.extend(detector.detect(claim, context))
             except Exception:
                 pass
 
         if self._judge:
             try:
                 judge_evidence, judge_response = self._judge.detect_and_return_raw(claim, context)
-
-                raw_response = judge_response or ""
-                cleaned = re.sub(r"```(?:json)?", "", raw_response).strip()
-                try:
-                    data = json.loads(cleaned)
-                    for det in data.get("detected", []):
-                        try:
-                            h_type = HallucinationType(det.get("type", ""))
-                            conf = float(det.get("confidence", 0.5))
-                            if conf >= self.config.judge_confidence_threshold:
-                                judge_detected_types[h_type] = max(
-                                    judge_detected_types.get(h_type, 0.0), conf
-                                )
-                        except (ValueError, KeyError):
-                            pass
-                except json.JSONDecodeError:
-                    pass
-
-                for ev in judge_evidence:
-                    if judge_detected_types:
-                        dominant_judge_type = max(
-                            judge_detected_types.items(), key=lambda x: x[1]
-                        )[0]
-                        all_evidence.append((dominant_judge_type, ev))
-
+                all_evidence.extend(judge_evidence)
             except Exception:
                 pass
 
-        detected, hallucination_prob, dominant = _aggregate_evidence(
-            all_evidence, judge_detected_types
-        )
+        detected, hallucination_prob, dominant = _aggregate_evidence(all_evidence)
 
         severity = {
             t: _infer_severity(t, c)
@@ -282,7 +234,7 @@ class HallucinoTypePipeline:
             context=context,
             detected_types=detected,
             severity=severity,
-            evidence=[ev for _, ev in all_evidence],
+            evidence=all_evidence,
             hallucination_probability=hallucination_prob,
             dominant_type=dominant,
             judge_response=judge_response,

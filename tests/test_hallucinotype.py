@@ -41,7 +41,7 @@ class TestTaxonomy:
             context="Einstein won the Nobel Prize in 1921.",
             detected_types={HallucinationType.TEMPORAL_CONFUSION: 0.85},
             hallucination_probability=0.85,
-            dominant_type=HallucinationType.TEMPORAL_CONFUSION,
+            dominant_hallucination_type=HallucinationType.TEMPORAL_CONFUSION,
         )
         summary = fp.summary()
         assert "temporal_confusion" in summary
@@ -284,13 +284,14 @@ class TestEvidence:
     def test_confidence_validation(self):
         from hallucinotype.taxonomy import Evidence
         with pytest.raises(ValidationError):
-            Evidence(source="test", description="test", confidence=1.5)
+            Evidence(hallucination_type=HallucinationType.TEMPORAL_CONFUSION, source="test", description="test", confidence=1.5)
         with pytest.raises(ValidationError):
-            Evidence(source="test", description="test", confidence=-0.1)
+            Evidence(hallucination_type=HallucinationType.TEMPORAL_CONFUSION, source="test", description="test", confidence=-0.1)
 
     def test_valid_evidence(self):
         from hallucinotype.taxonomy import Evidence
         ev = Evidence(
+            hallucination_type=HallucinationType.TEMPORAL_CONFUSION,
             source="TestDetector",
             description="Year mismatch detected.",
             span=(10, 14),

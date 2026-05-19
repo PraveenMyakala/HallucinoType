@@ -143,6 +143,7 @@ def _parse_judge_response(raw: str, claim: str) -> tuple[list[Evidence], str]:
                     start, end = idx, idx + len(span_text)
 
             evidence.append(Evidence(
+                hallucination_type=HallucinationType(h_type_str),
                 source="LLMJudgeDetector",
                 description=det.get("explanation", ""),
                 span=(start, end) if start is not None else None,

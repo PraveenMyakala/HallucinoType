@@ -149,6 +149,7 @@ class TemporalConfusionDetector(BaseDetector):
                 # A 1-year error is different from a 10-year error
                 confidence = min(0.95, 0.4 + (gap / 50))
                 evidence.append(Evidence(
+                    hallucination_type=HallucinationType.TEMPORAL_CONFUSION,
                     source="TemporalConfusionDetector",
                     description=(
                         f"Year {year} in claim doesn't match context. "
@@ -180,6 +181,7 @@ class TemporalConfusionDetector(BaseDetector):
                     if gap_days > 31:  # More than a month off
                         confidence = min(0.95, 0.5 + gap_days / 365)
                         evidence.append(Evidence(
+                            hallucination_type=HallucinationType.TEMPORAL_CONFUSION,
                             source="TemporalConfusionDetector",
                             description=(
                                 f"Date '{dt.strftime('%B %Y')}' in claim doesn't "
