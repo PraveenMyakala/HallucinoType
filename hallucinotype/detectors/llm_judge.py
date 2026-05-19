@@ -102,6 +102,7 @@ def _call_openai(prompt_messages: list[dict], model: str) -> str:
         messages=messages,
         max_tokens=1024,
         temperature=0.0,
+        response_format={"type": "json_object"},
     )
     return response.choices[0].message.content
 
@@ -109,15 +110,13 @@ def _call_openai(prompt_messages: list[dict], model: str) -> str:
 def _parse_judge_response(raw: str, claim: str) -> tuple[list[Evidence], str]:
     """
     Parse the judge's JSON response into Evidence objects.
-    Returns (evidence_list, raw_response).
+    Returns (evidence_list, reasoning).
     """
-    # Strip markdown code fences if present
     cleaned = re.sub(r"```(?:json)?", "", raw).strip()
 
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError:
-        # Fallback: try to extract JSON object
         match = re.search(r'\{.*\}', cleaned, re.DOTALL)
         if match:
             try:
@@ -131,7 +130,6 @@ def _parse_judge_response(raw: str, claim: str) -> tuple[list[Evidence], str]:
     for det in data.get("detected", []):
         try:
             h_type_str = det.get("type", "")
-            # Validate that it's a known type
             try:
                 HallucinationType(h_type_str)
             except ValueError:
@@ -174,8 +172,7 @@ class LLMJudgeDetector(BaseDetector):
     it's designed to catch what rules can't.
     """
 
-    # This detector handles multiple types
-    detects = HallucinationType.CONFIDENT_FABRICATION  # Primary type
+    detects = HallucinationType.CONFIDENT_FABRICATION
 
     DETECTABLE_TYPES = {
         HallucinationType.CONFIDENT_FABRICATION,
@@ -202,13 +199,20 @@ class LLMJudgeDetector(BaseDetector):
         else:
             self.model = model
 
+        # _raw_response retained only for single-call compat — not used in batch
         self._raw_response: Optional[str] = None
 
-    def detect(
+    def detect_and_return_raw(
         self,
         claim: str,
         context: Optional[str] = None,
-    ) -> list[Evidence]:
+    ) -> tuple[list[Evidence], str]:
+        """
+        Thread-safe core detection method.
+
+        Returns (filtered_evidence, raw_response) without touching instance
+        state, so concurrent batch calls never clobber each other.
+        """
         if context:
             user_content = USER_TEMPLATE.format(claim=claim, context=context)
         else:
@@ -224,15 +228,20 @@ class LLMJudgeDetector(BaseDetector):
             else:
                 raise ValueError(f"Unknown backend: {self.backend}")
         except Exception as e:
-            # Don't crash the pipeline if the API call fails
-            self._raw_response = f"API error: {e}"
-            return []
+            return [], f"API error: {e}"
 
-        self._raw_response = raw
         evidence, _ = _parse_judge_response(raw, claim)
+        return [e for e in evidence if e.confidence >= self.confidence_threshold], raw
 
-        # Filter by confidence threshold
-        return [e for e in evidence if e.confidence >= self.confidence_threshold]
+    def detect(
+        self,
+        claim: str,
+        context: Optional[str] = None,
+    ) -> list[Evidence]:
+        """Single-claim detection. Stores raw response on instance for compat."""
+        evidence, raw = self.detect_and_return_raw(claim, context)
+        self._raw_response = raw
+        return evidence
 
     def detect_with_reasoning(
         self,
@@ -243,19 +252,16 @@ class LLMJudgeDetector(BaseDetector):
         Same as detect() but also returns the judge's chain-of-thought.
         Useful for debugging and auditing.
         """
-        self.detect(claim, context)
-        if self._raw_response:
-            cleaned = re.sub(r"```(?:json)?", "", self._raw_response).strip()
+        evidence, raw = self.detect_and_return_raw(claim, context)
+
+        if raw and not raw.startswith("API error:"):
+            cleaned = re.sub(r"```(?:json)?", "", raw).strip()
             try:
                 data = json.loads(cleaned)
                 reasoning = data.get("reasoning", "")
             except json.JSONDecodeError:
-                reasoning = self._raw_response
+                reasoning = raw
         else:
-            reasoning = ""
+            reasoning = raw or ""
 
-        evidence, _ = _parse_judge_response(self._raw_response or "", claim)
-        return (
-            [e for e in evidence if e.confidence >= self.confidence_threshold],
-            reasoning
-        )
+        return evidence, reasoning

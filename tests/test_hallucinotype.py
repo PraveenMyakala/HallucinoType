@@ -7,6 +7,8 @@ Run with: pytest tests/ -v
 """
 
 import pytest
+from pydantic import ValidationError
+
 from hallucinotype import __version__
 from hallucinotype.taxonomy import HallucinationType, HallucinationSeverity
 from hallucinotype.detectors.temporal import TemporalConfusionDetector, extract_years
@@ -281,9 +283,9 @@ class TestPipelineRuleBasedOnly:
 class TestEvidence:
     def test_confidence_validation(self):
         from hallucinotype.taxonomy import Evidence
-        with pytest.raises(ValueError):
+        with pytest.raises(ValidationError):
             Evidence(source="test", description="test", confidence=1.5)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValidationError):
             Evidence(source="test", description="test", confidence=-0.1)
 
     def test_valid_evidence(self):

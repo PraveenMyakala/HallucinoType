@@ -10,9 +10,10 @@ for LLM Hallucination Patterns"
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
+
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # Hallucination Type Taxonomy
@@ -74,31 +75,25 @@ class HallucinationSeverity(str, Enum):
 # Evidence model
 # ---------------------------------------------------------------------------
 
-@dataclass
-class Evidence:
+class Evidence(BaseModel):
     """
     A single piece of evidence supporting a hallucination detection.
 
     Detectors attach evidence to explain *why* they flagged something,
     making outputs auditable and useful for downstream analysis.
     """
-    source: str                        # Which detector produced this
-    description: str                   # Human-readable explanation
-    span: Optional[tuple[int, int]] = None   # Character offsets in the claim
-    reference_text: Optional[str] = None     # The correct value, if known
-    confidence: float = 1.0            # Detector confidence in this evidence
-
-    def __post_init__(self):
-        if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError(f"Evidence confidence must be in [0, 1], got {self.confidence}")
+    source: str
+    description: str
+    span: Optional[tuple[int, int]] = None
+    reference_text: Optional[str] = None
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
 # ---------------------------------------------------------------------------
 # Core fingerprint output
 # ---------------------------------------------------------------------------
 
-@dataclass
-class HallucinationFingerprint:
+class HallucinationFingerprint(BaseModel):
     """
     The main output of the HallucinoType detection pipeline.
 
@@ -106,24 +101,12 @@ class HallucinationFingerprint:
     multiple hallucination types simultaneously.
     """
     claim: str
-    context: Optional[str]
-
-    # Detected types with individual confidence scores
-    detected_types: dict[HallucinationType, float] = field(default_factory=dict)
-
-    # Severity per detected type
-    severity: dict[HallucinationType, HallucinationSeverity] = field(default_factory=dict)
-
-    # Supporting evidence from each detector
-    evidence: list[Evidence] = field(default_factory=list)
-
-    # Overall hallucination probability across all types
+    context: Optional[str] = None
+    detected_types: dict[HallucinationType, float] = Field(default_factory=dict)
+    severity: dict[HallucinationType, HallucinationSeverity] = Field(default_factory=dict)
+    evidence: list[Evidence] = Field(default_factory=list)
     hallucination_probability: float = 0.0
-
-    # Dominant type (highest confidence detected type, if any)
     dominant_type: Optional[HallucinationType] = None
-
-    # Raw model response (for LLM-as-judge detectors)
     judge_response: Optional[str] = None
 
     def is_hallucinated(self, threshold: float = 0.5) -> bool:
@@ -151,26 +134,6 @@ class HallucinationFingerprint:
         )
 
     def to_dict(self) -> dict:
-        return {
-            "claim": self.claim,
-            "context": self.context,
-            "hallucination_probability": self.hallucination_probability,
-            "is_hallucinated": self.is_hallucinated(),
-            "dominant_type": self.dominant_type.value if self.dominant_type else None,
-            "detected_types": {
-                t.value: c for t, c in self.detected_types.items()
-            },
-            "severity": {
-                t.value: s.value for t, s in self.severity.items()
-            },
-            "evidence": [
-                {
-                    "source": e.source,
-                    "description": e.description,
-                    "span": e.span,
-                    "reference_text": e.reference_text,
-                    "confidence": e.confidence,
-                }
-                for e in self.evidence
-            ],
-        }
+        d = self.model_dump(mode="json")
+        d["is_hallucinated"] = self.is_hallucinated()
+        return d

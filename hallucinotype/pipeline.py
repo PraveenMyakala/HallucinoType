@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Optional
 
@@ -91,12 +92,10 @@ def _aggregate_evidence(
             type_confidences[h_type] = []
         type_confidences[h_type].append(ev.confidence)
 
-    # For judge-detected types not already in evidence
     for h_type, conf in judge_detected_types.items():
         if h_type not in type_confidences:
             type_confidences[h_type] = [conf]
 
-    # Aggregate: use max confidence per type
     detected: dict[HallucinationType, float] = {
         t: max(confs) for t, confs in type_confidences.items()
     }
@@ -104,7 +103,6 @@ def _aggregate_evidence(
     if not detected:
         return {}, 0.0, None
 
-    # Overall probability: noisy-OR
     prob = 1.0
     for conf in detected.values():
         prob *= (1.0 - conf)
@@ -122,27 +120,25 @@ def _aggregate_evidence(
 class PipelineConfig:
     """Configuration for the HallucinoType pipeline."""
 
-    # Rule-based detectors
     use_entity_detector: bool = True
     use_temporal_detector: bool = True
     use_numerical_detector: bool = True
 
-    # LLM judge (costs API tokens — disable for offline/cheap runs)
     use_llm_judge: bool = True
-    judge_backend: str = "anthropic"      # "anthropic" | "openai"
+    judge_backend: str = "anthropic"
     judge_model: Optional[str] = None
 
-    # spaCy NER (disable if spaCy not installed)
     use_spacy: bool = True
 
-    # Thresholds
     entity_confidence_threshold: float = 0.5
     temporal_confidence_threshold: float = 0.5
     numerical_confidence_threshold: float = 0.5
     judge_confidence_threshold: float = 0.4
 
-    # Year tolerance for temporal detector (0 = exact match required)
     year_tolerance: int = 0
+
+    # Max parallel workers for run_batch (None = ThreadPoolExecutor default)
+    batch_max_workers: Optional[int] = None
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +222,6 @@ class HallucinoTypePipeline:
         judge_detected_types: dict[HallucinationType, float] = {}
         judge_response: Optional[str] = None
 
-        # --- Rule-based detectors ---
         detector_type_map = {
             EntitySubstitutionDetector: HallucinationType.ENTITY_SUBSTITUTION,
             TemporalConfusionDetector: HallucinationType.TEMPORAL_CONFUSION,
@@ -240,17 +235,12 @@ class HallucinoTypePipeline:
                 for ev in evidence_list:
                     all_evidence.append((h_type, ev))
             except Exception:
-                # Individual detector failures shouldn't crash the pipeline
                 pass
 
-        # --- LLM judge ---
         if self._judge:
             try:
-                judge_evidence = self._judge.detect(claim, context)
-                judge_response = self._judge._raw_response
+                judge_evidence, judge_response = self._judge.detect_and_return_raw(claim, context)
 
-                # Map judge evidence back to types using their confidence
-                # The judge prompt specifies type in the JSON
                 raw_response = judge_response or ""
                 cleaned = re.sub(r"```(?:json)?", "", raw_response).strip()
                 try:
@@ -269,8 +259,6 @@ class HallucinoTypePipeline:
                     pass
 
                 for ev in judge_evidence:
-                    # Assign to the most recently detected judge type
-                    # (best approximation without re-parsing)
                     if judge_detected_types:
                         dominant_judge_type = max(
                             judge_detected_types.items(), key=lambda x: x[1]
@@ -280,12 +268,10 @@ class HallucinoTypePipeline:
             except Exception:
                 pass
 
-        # --- Aggregate ---
         detected, hallucination_prob, dominant = _aggregate_evidence(
             all_evidence, judge_detected_types
         )
 
-        # --- Build severity map ---
         severity = {
             t: _infer_severity(t, c)
             for t, c in detected.items()
@@ -308,23 +294,21 @@ class HallucinoTypePipeline:
         contexts: Optional[list[Optional[str]]] = None,
     ) -> list[HallucinationFingerprint]:
         """
-        Run the pipeline on a list of claims.
+        Run the pipeline concurrently over a list of claims.
 
         Args:
             claims:   List of model outputs to evaluate.
             contexts: Optional list of reference texts, one per claim.
-                      Pass None for a claim to run without context.
         """
+        if contexts is not None and len(claims) != len(contexts):
+            raise ValueError("claims and contexts must have the same length")
+
         if contexts is None:
             contexts = [None] * len(claims)
 
-        if len(contexts) != len(claims):
-            raise ValueError(
-                f"claims and contexts must have the same length "
-                f"({len(claims)} vs {len(contexts)})"
-            )
-
-        return [
-            self.run(claim, ctx)
-            for claim, ctx in zip(claims, contexts)
-        ]
+        with ThreadPoolExecutor(max_workers=self.config.batch_max_workers) as executor:
+            futures = [
+                executor.submit(self.run, claim, ctx)
+                for claim, ctx in zip(claims, contexts)
+            ]
+            return [f.result() for f in futures]
