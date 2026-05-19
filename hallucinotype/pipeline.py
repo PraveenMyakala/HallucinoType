@@ -258,7 +258,13 @@ class HallucinoTypePipeline:
         if contexts is None:
             contexts = [None] * len(claims)
 
-        with ThreadPoolExecutor(max_workers=self.config.batch_max_workers) as executor:
+        # LLM judge calls are network I/O — CPU-based defaults (os.cpu_count()+4)
+        # are too conservative. Use 32 as the floor when the judge is active.
+        max_workers = self.config.batch_max_workers
+        if max_workers is None and self.config.use_llm_judge:
+            max_workers = 32
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [
                 executor.submit(self.run, claim, ctx)
                 for claim, ctx in zip(claims, contexts)
