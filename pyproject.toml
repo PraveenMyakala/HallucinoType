@@ -1,3 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hallucinotype"
+version = "0.1.0"
+description = "Typed hallucination detection for LLMs — fingerprint outputs as temporal_confusion, entity_substitution, numerical_distortion, and more"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Praveen Kumar Myakala", email = "praveen.k.myakala@gmail.com" }]
+requires-python = ">=3.10"
+keywords = ["llm", "hallucination", "detection", "nlp", "ai", "evaluation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    "anthropic>=0.25.0",
+    "openai>=1.30.0",
+    "spacy>=3.7.0",
+    "dateparser>=1.2.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4.0",
+]
+
+[project.scripts]
+hallucinotype = "hallucinotype.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/PraveenMyakala/HallucinoType"
+Repository = "https://github.com/PraveenMyakala/HallucinoType"
+Issues = "https://github.com/PraveenMyakala/HallucinoType/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["hallucinotype"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [

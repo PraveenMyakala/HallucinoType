@@ -17,6 +17,7 @@ import json
 import sys
 from typing import Optional
 
+from hallucinotype import __version__
 from hallucinotype.pipeline import HallucinoTypePipeline, PipelineConfig
 from hallucinotype.taxonomy import HallucinationFingerprint
 
@@ -151,7 +152,7 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="hallucinotype",
         description="Typed hallucination detection for LLM outputs.",
     )
-    parser.add_argument("--version", action="version", version="hallucinotype 0.1.0")
+    parser.add_argument("--version", action="version", version=f"hallucinotype {__version__}")
 
     shared = argparse.ArgumentParser(add_help=False)
     shared.add_argument("--no-llm", action="store_true", help="Disable LLM judge (rule-based only)")
