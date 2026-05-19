@@ -21,7 +21,6 @@ from typing import Optional
 from hallucinotype.detectors.base import BaseDetector
 from hallucinotype.taxonomy import Evidence, HallucinationType
 
-
 # ---------------------------------------------------------------------------
 # Year extraction helpers
 # ---------------------------------------------------------------------------

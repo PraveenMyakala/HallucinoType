@@ -21,7 +21,6 @@ from hallucinotype import __version__
 from hallucinotype.pipeline import HallucinoTypePipeline, PipelineConfig
 from hallucinotype.taxonomy import HallucinationFingerprint
 
-
 # ---------------------------------------------------------------------------
 # Output formatting
 # ---------------------------------------------------------------------------
