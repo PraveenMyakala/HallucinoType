@@ -1,10 +1,16 @@
 name: Release to PyPI
 
 # Triggers when you push a version tag: git tag v0.2.0 && git push --tags
+# Can also be triggered manually from Actions tab (Actions → Release to PyPI → Run workflow)
 on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to release (e.g. v0.2.0)"
+        required: true
 
 jobs:
   # ── 1. Run tests before touching PyPI ─────────────────────────────────────
