@@ -22,17 +22,23 @@ HallucinoType tells you *what kind* — which changes how you fix it.
 
 ---
 
-## Setup
+## Install
+
+```bash
+pip install hallucinotype
+```
+
+## Setup (development)
 
 ```bash
 git clone https://github.com/PraveenMyakala/HallucinoType.git
-cd hallucinotype
+cd HallucinoType
 
 python -m venv .venv
 .venv\Scripts\activate          # Windows
 # source .venv/bin/activate     # Mac/Linux
 
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
 ---
@@ -158,21 +164,21 @@ for claim, fp in zip(claims, results):
 
 ```bash
 # Single claim — rule-based only (no API key needed)
-python -m hallucinotype detect \
+hallucinotype detect \
     --claim "Einstein won the Nobel Prize in 1905." \
     --context "Einstein won the Nobel Prize in Physics in 1921." \
     --no-llm --format text
 
 # Single claim — with LLM judge (requires ANTHROPIC_API_KEY)
-python -m hallucinotype detect \
+hallucinotype detect \
     --claim "The study found 78% efficacy." \
     --context "The trial reported a 38% success rate."
 
 # Batch from a JSONL file (one {"claim": "...", "context": "..."} per line)
-python -m hallucinotype batch --input claims.jsonl --format text
+hallucinotype batch --input claims.jsonl --format text
 
 # Output JSON to file
-python -m hallucinotype detect --claim "..." --context "..." --output result.json
+hallucinotype detect --claim "..." --context "..." --output result.json
 ```
 
 ---
@@ -184,7 +190,7 @@ pip install -r requirements-dev.txt
 pytest tests/ -v
 ```
 
-All 28 tests are rule-based and run in under 1 second with no API key.
+All 35 tests are rule-based and run in under 1 second with no API key.
 
 ---
 
@@ -230,7 +236,7 @@ Rule-based detectors run first (fast, no cost). The LLM judge handles semantical
 ## Roadmap
 
 - [x] `v0.1` Core package: 8-type taxonomy, 4 detectors, typed fingerprints, 28 tests
-- [x] `v0.1` CLI: `python -m hallucinotype detect/batch`
+- [x] `v0.1` CLI: `hallucinotype detect/batch` (also `python -m hallucinotype`)
 - [ ] `v0.2` Annotated benchmark dataset (typed, claim-context pairs with ground truth)
 - [ ] `v0.3` Evaluation vs binary baselines (Vectara HHEM, SelfCheckGPT)
 - [ ] `v0.4` Attribution: trace hallucination type to training data patterns
@@ -238,6 +244,72 @@ Rule-based detectors run first (fast, no cost). The LLM judge handles semantical
 
 ---
 
+## Releasing
+
+Releases are fully automated via GitHub Actions. Pushing a version tag triggers the pipeline: tests → build → publish to PyPI → GitHub Release.
+
+### Prerequisites (one-time setup)
+
+**1. Register a PyPI Trusted Publisher** at [pypi.org/manage/account/publishing](https://pypi.org/manage/account/publishing/):
+
+| Field | Value |
+|---|---|
+| PyPI project name | `hallucinotype` |
+| Owner | `PraveenMyakala` |
+| Repository name | `HallucinoType` |
+| Workflow filename | `release.yml` |
+| Environment name | `pypi` |
+
+**2. Create a `pypi` environment** in the GitHub repo:  
+Settings → Environments → New environment → name it `pypi`.
+
+No API tokens are stored anywhere — authentication uses OIDC.
+
+### Cutting a release
+
+```bash
+# 1. Bump the version in both files (must match exactly)
+#    hallucinotype/__init__.py  →  __version__ = "0.X.0"
+#    pyproject.toml             →  version = "0.X.0"
+
+# 2. Commit, tag, push
+git add hallucinotype/__init__.py pyproject.toml
+git commit -m "chore: release v0.X.0"
+git tag v0.X.0
+git push origin main
+git push origin v0.X.0
+```
+
+The pipeline then runs automatically:
+
+```
+tag push v0.X.0
+  ├── test      run pytest (blocks release on failure)
+  ├── build     build wheel + sdist, verify tag == __version__
+  ├── publish   upload to PyPI via OIDC (no token needed)
+  └── github-release  attach .whl + .tar.gz to the GitHub Release
+```
+
+Monitor progress at:  
+`https://github.com/PraveenMyakala/HallucinoType/actions`
+
+### Manual trigger
+
+If the pipeline doesn't fire (e.g. tag pushed before workflow file was on `main`):
+
+1. Go to **Actions → Release to PyPI → Run workflow**
+2. Enter the tag name (e.g. `v0.2.0`) and click **Run workflow**
+
+Or re-push the tag after `main` is up to date:
+
+```bash
+git push origin :refs/tags/v0.X.0   # delete remote tag
+git tag -f v0.X.0                    # re-point tag to current commit
+git push origin v0.X.0               # push again → triggers pipeline
+```
+
+---
+
 ## License
 
-Apache 2.0
+MIT
