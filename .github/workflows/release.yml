@@ -1,0 +1,100 @@
+name: Release to PyPI
+
+# Triggers when you push a version tag: git tag v0.2.0 && git push --tags
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  # ── 1. Run tests before touching PyPI ─────────────────────────────────────
+  test:
+    name: Test before release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package + dev deps
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check hallucinotype/
+
+      - name: Test
+        run: pytest tests/ -v -m "not slow" --tb=short
+
+  # ── 2. Build wheel + sdist ─────────────────────────────────────────────────
+  build:
+    name: Build distributions
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: |
+          pip install build
+          python -m build
+
+      - name: Verify tag matches package version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"          # strip leading 'v'
+          PKG=$(python -c "import hallucinotype; print(hallucinotype.__version__)")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "ERROR: tag $GITHUB_REF_NAME does not match package version $PKG"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # ── 3. Publish to PyPI via OIDC Trusted Publisher (no API token needed) ───
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/hallucinotype
+    permissions:
+      id-token: write   # required for OIDC trusted publisher
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  # ── 4. Create a GitHub Release with the built assets attached ─────────────
+  github-release:
+    name: Create GitHub Release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

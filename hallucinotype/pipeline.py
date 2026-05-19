@@ -18,7 +18,9 @@ Usage:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+import re
+from dataclasses import dataclass
 from typing import Optional
 
 from hallucinotype.detectors.base import BaseDetector
@@ -32,7 +34,6 @@ from hallucinotype.taxonomy import (
     HallucinationSeverity,
     HallucinationType,
 )
-
 
 # ---------------------------------------------------------------------------
 # Severity inference
@@ -251,7 +252,6 @@ class HallucinoTypePipeline:
                 # Map judge evidence back to types using their confidence
                 # The judge prompt specifies type in the JSON
                 raw_response = judge_response or ""
-                import json, re
                 cleaned = re.sub(r"```(?:json)?", "", raw_response).strip()
                 try:
                     data = json.loads(cleaned)
