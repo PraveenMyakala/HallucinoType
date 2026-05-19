@@ -117,8 +117,19 @@ def cmd_batch(args) -> int:
         print(f"Error reading input: {exc}", file=sys.stderr)
         return 2
 
-    claims = [r["claim"] for r in records]
-    contexts: list[Optional[str]] = [r.get("context") for r in records]
+    valid_records = []
+    for i, r in enumerate(records):
+        if "claim" not in r:
+            print(f"Warning: skipping record {i + 1} — missing 'claim' key", file=sys.stderr)
+        else:
+            valid_records.append(r)
+
+    if not valid_records:
+        print("Error: no valid records found in input.", file=sys.stderr)
+        return 2
+
+    claims = [r["claim"] for r in valid_records]
+    contexts: list[Optional[str]] = [r.get("context") for r in valid_records]
 
     results = pipeline.run_batch(claims, contexts)
 

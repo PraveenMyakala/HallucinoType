@@ -16,6 +16,7 @@ Strategy:
 from __future__ import annotations
 
 import re
+import threading
 from typing import Optional
 
 from hallucinotype.detectors.base import BaseDetector
@@ -23,6 +24,7 @@ from hallucinotype.taxonomy import Evidence, HallucinationType
 
 # spaCy is loaded lazily so the import doesn't crash if it's not installed
 _nlp = None
+_nlp_lock = threading.Lock()
 
 # Entity types ranked by substitution risk
 # PERSON and ORG substitutions are most dangerous
@@ -43,13 +45,15 @@ ENTITY_TYPE_WEIGHTS = {
 def _get_nlp():
     global _nlp
     if _nlp is None:
-        try:
-            import spacy
-            _nlp = spacy.load("en_core_web_sm")
-        except OSError:
-            raise RuntimeError(
-                "spaCy model not found. Run: python -m spacy download en_core_web_sm"
-            )
+        with _nlp_lock:
+            if _nlp is None:  # double-checked locking: only the first thread loads
+                try:
+                    import spacy
+                    _nlp = spacy.load("en_core_web_sm")
+                except OSError:
+                    raise RuntimeError(
+                        "spaCy model not found. Run: python -m spacy download en_core_web_sm"
+                    )
     return _nlp
 
 

@@ -28,7 +28,7 @@ from hallucinotype.taxonomy import Evidence, HallucinationType
 # Matches 4-digit years in plausible historical range
 YEAR_PATTERN = re.compile(r'\b(1[0-9]{3}|20[0-2][0-9])\b')
 
-# Decade references: "the 1980s", "the 90s", "the eighties"
+# Decade references: "the 1980s", "the 2000s", "the eighties" (2-digit shorthands like "90s" are intentionally excluded — ambiguous century)
 DECADE_PATTERN = re.compile(
     r'\b(?:the\s+)?'
     r'((?:19|20)\d0s'
