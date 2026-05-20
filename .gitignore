@@ -28,5 +28,6 @@ Thumbs.db
 *.md
 !README.md
 !SECURITY.md
+!CONTRIBUTING.md
 
 output.txt
