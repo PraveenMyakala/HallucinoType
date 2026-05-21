@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from contextlib import ExitStack
 from typing import Optional
 
 from hallucinotype import __version__
@@ -97,12 +98,9 @@ def cmd_detect(args) -> int:
     pipeline = _build_pipeline(args)
     fp = pipeline.run(claim=args.claim, context=args.context)
 
-    out = sys.stdout if not args.output else open(args.output, "w", encoding="utf-8")
-    try:
+    with ExitStack() as stack:
+        out = stack.enter_context(open(args.output, "w", encoding="utf-8")) if args.output else sys.stdout
         _print_result(fp, args.format, out)
-    finally:
-        if args.output:
-            out.close()
 
     return 1 if fp.is_hallucinated() else 0
 
@@ -133,17 +131,14 @@ def cmd_batch(args) -> int:
 
     results = pipeline.run_batch(claims, contexts)
 
-    out = sys.stdout if not args.output else open(args.output, "w", encoding="utf-8")
-    try:
+    with ExitStack() as stack:
+        out = stack.enter_context(open(args.output, "w", encoding="utf-8")) if args.output else sys.stdout
         for fp in results:
             if args.format == "json":
                 print(json.dumps(fp.to_dict()), file=out)
             else:
                 print(_format_text(fp), file=out)
                 print("-" * 60, file=out)
-    finally:
-        if args.output:
-            out.close()
 
     n_flagged = sum(1 for fp in results if fp.is_hallucinated())
     print(
