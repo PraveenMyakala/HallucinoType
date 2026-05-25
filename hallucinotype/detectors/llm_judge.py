@@ -81,9 +81,7 @@ or negation_flip when you are highly certain something is factually wrong."""
 # Backend helpers
 # ---------------------------------------------------------------------------
 
-def _call_anthropic(prompt_messages: list[dict], model: str) -> str:
-    import anthropic
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+def _call_anthropic(client, prompt_messages: list[dict], model: str) -> str:
     response = client.messages.create(
         model=model,
         max_tokens=1024,
@@ -94,9 +92,7 @@ def _call_anthropic(prompt_messages: list[dict], model: str) -> str:
     return response.content[0].text
 
 
-def _call_openai(prompt_messages: list[dict], model: str) -> str:
-    import openai
-    client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+def _call_openai(client, prompt_messages: list[dict], model: str) -> str:
     messages = [{"role": "system", "content": SYSTEM_PROMPT}] + prompt_messages
     response = client.chat.completions.create(
         model=model,
@@ -201,6 +197,15 @@ class LLMJudgeDetector(BaseDetector):
         else:
             self.model = model
 
+        if backend == "anthropic":
+            import anthropic
+            self._client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        elif backend == "openai":
+            import openai
+            self._client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        else:
+            raise ValueError(f"Unknown backend: {backend}")
+
         # _raw_response retained only for single-call compat — not used in batch
         self._raw_response: Optional[str] = None
 
@@ -224,11 +229,9 @@ class LLMJudgeDetector(BaseDetector):
 
         try:
             if self.backend == "anthropic":
-                raw = _call_anthropic(messages, self.model)
-            elif self.backend == "openai":
-                raw = _call_openai(messages, self.model)
+                raw = _call_anthropic(self._client, messages, self.model)
             else:
-                raise ValueError(f"Unknown backend: {self.backend}")
+                raw = _call_openai(self._client, messages, self.model)
         except Exception as e:
             return [], f"API error: {e}"
 
