@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -48,7 +48,7 @@ jobs:
       - name: Verify tag matches package version
         run: |
           TAG="${GITHUB_REF_NAME#v}"          # strip leading 'v'
-          PKG=$(python -c "import hallucinotype; print(hallucinotype.__version__)")
+          PKG=$(python -c "import tomllib; data=tomllib.loads(open('pyproject.toml').read()); print(data['project']['version'])")
           if [ "$TAG" != "$PKG" ]; then
             echo "ERROR: tag $GITHUB_REF_NAME does not match package version $PKG"
             exit 1
@@ -71,7 +71,7 @@ jobs:
       id-token: write   # required for OIDC trusted publisher
 
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist/
@@ -88,7 +88,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist/
