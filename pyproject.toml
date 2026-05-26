@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "hallucinotype"
-version = "0.2.0"
+version = "0.2.1"
 description = "Typed hallucination detection for LLMs — fingerprint outputs as temporal_confusion, entity_substitution, numerical_distortion, and more"
 readme = "README.md"
 license = { file = "LICENSE" }
