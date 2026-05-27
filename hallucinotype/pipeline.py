@@ -20,7 +20,8 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Optional
+from itertools import repeat
+from typing import Iterable, Iterator, Optional
 
 from hallucinotype.detectors.base import BaseDetector
 from hallucinotype.detectors.entity import EntitySubstitutionDetector
@@ -242,21 +243,28 @@ class HallucinoTypePipeline:
 
     def run_batch(
         self,
-        claims: list[str],
-        contexts: Optional[list[Optional[str]]] = None,
-    ) -> list[HallucinationFingerprint]:
+        claims: Iterable[str],
+        contexts: Optional[Iterable[Optional[str]]] = None,
+    ) -> Iterator[HallucinationFingerprint]:
         """
-        Run the pipeline concurrently over a list of claims.
+        Yield fingerprints concurrently over a stream of claims.
 
         Args:
-            claims:   List of model outputs to evaluate.
-            contexts: Optional list of reference texts, one per claim.
+            claims:   Iterable of model outputs to evaluate.
+            contexts: Optional iterable of reference texts, one per claim.
+
+        Yields:
+            HallucinationFingerprint for each (claim, context) pair, in order.
         """
-        if contexts is not None and len(claims) != len(contexts):
+        if (
+            contexts is not None
+            and hasattr(claims, "__len__")
+            and hasattr(contexts, "__len__")
+            and len(claims) != len(contexts)  # type: ignore[arg-type]
+        ):
             raise ValueError("claims and contexts must have the same length")
 
-        if contexts is None:
-            contexts = [None] * len(claims)
+        contexts_iter: Iterable[Optional[str]] = contexts if contexts is not None else repeat(None)
 
         # LLM judge calls are network I/O — CPU-based defaults (os.cpu_count()+4)
         # are too conservative. Use 32 as the floor when the judge is active.
@@ -265,8 +273,4 @@ class HallucinoTypePipeline:
             max_workers = 32
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [
-                executor.submit(self.run, claim, ctx)
-                for claim, ctx in zip(claims, contexts)
-            ]
-            return [f.result() for f in futures]
+            yield from executor.map(self.run, claims, contexts_iter)

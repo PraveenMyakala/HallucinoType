@@ -108,43 +108,48 @@ def cmd_detect(args) -> int:
 def cmd_batch(args) -> int:
     pipeline = _build_pipeline(args)
 
+    claims: list[str] = []
+    contexts: list[Optional[str]] = []
+
     try:
         with open(args.input, encoding="utf-8") as f:
-            records = [json.loads(line) for line in f if line.strip()]
-    except (FileNotFoundError, json.JSONDecodeError) as exc:
+            for i, line in enumerate(f):
+                if not line.strip():
+                    continue
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    print(f"Warning: skipping line {i + 1} — {exc}", file=sys.stderr)
+                    continue
+                if "claim" not in r:
+                    print(f"Warning: skipping record {i + 1} — missing 'claim' key", file=sys.stderr)
+                    continue
+                claims.append(r["claim"])
+                contexts.append(r.get("context"))
+    except FileNotFoundError as exc:
         print(f"Error reading input: {exc}", file=sys.stderr)
         return 2
 
-    valid_records = []
-    for i, r in enumerate(records):
-        if "claim" not in r:
-            print(f"Warning: skipping record {i + 1} — missing 'claim' key", file=sys.stderr)
-        else:
-            valid_records.append(r)
-
-    if not valid_records:
+    if not claims:
         print("Error: no valid records found in input.", file=sys.stderr)
         return 2
 
-    claims = [r["claim"] for r in valid_records]
-    contexts: list[Optional[str]] = [r.get("context") for r in valid_records]
-
-    results = pipeline.run_batch(claims, contexts)
+    n_total = 0
+    n_flagged = 0
 
     with ExitStack() as stack:
         out = stack.enter_context(open(args.output, "w", encoding="utf-8")) if args.output else sys.stdout
-        for fp in results:
+        for fp in pipeline.run_batch(claims, contexts):
+            n_total += 1
+            if fp.is_hallucinated():
+                n_flagged += 1
             if args.format == "json":
                 print(json.dumps(fp.to_dict()), file=out)
             else:
                 print(_format_text(fp), file=out)
                 print("-" * 60, file=out)
 
-    n_flagged = sum(1 for fp in results if fp.is_hallucinated())
-    print(
-        f"\n{n_flagged}/{len(results)} claims flagged as hallucinated.",
-        file=sys.stderr,
-    )
+    print(f"\n{n_flagged}/{n_total} claims flagged as hallucinated.", file=sys.stderr)
     return 0
 
 

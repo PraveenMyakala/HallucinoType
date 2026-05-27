@@ -248,13 +248,13 @@ class TestPipelineRuleBasedOnly:
             "The study found 38% efficacy in the treatment group.",
             "The FDA approved the treatment in 2010.",
         ]
-        results = self.pipeline.run_batch(claims, contexts)
+        results = list(self.pipeline.run_batch(claims, contexts))
         assert len(results) == 2
         assert all(isinstance(r, type(results[0])) for r in results)
 
     def test_batch_mismatched_lengths_raises(self):
         with pytest.raises(ValueError):
-            self.pipeline.run_batch(["claim1", "claim2"], ["context1"])
+            list(self.pipeline.run_batch(["claim1", "claim2"], ["context1"]))
 
     def test_dominant_type_is_highest_confidence(self):
         fp = self.pipeline.run(
