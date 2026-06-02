@@ -80,12 +80,13 @@ def extract_full_dates(text: str) -> list[tuple[datetime, int, int]]:
     """
     results = []
     for m in MONTH_YEAR_PATTERN.finditer(text):
+        normalized = m.group().capitalize()
         try:
-            dt = datetime.strptime(m.group(), "%B %Y")
+            dt = datetime.strptime(normalized, "%B %Y")
             results.append((dt, m.start(), m.end()))
         except ValueError:
             try:
-                dt = datetime.strptime(m.group(), "%B of %Y")
+                dt = datetime.strptime(normalized, "%B of %Y")
                 results.append((dt, m.start(), m.end()))
             except ValueError:
                 pass
