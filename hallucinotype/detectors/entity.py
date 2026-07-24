@@ -142,17 +142,18 @@ class EntitySubstitutionDetector(BaseDetector):
             if not same_type_context:
                 # Entity type not in context at all — weaker signal
                 confidence = ENTITY_TYPE_WEIGHTS.get(ent_type, 0.3) * 0.5
-                evidence.append(Evidence(
-                    hallucination_type=HallucinationType.ENTITY_SUBSTITUTION,
-                    source="EntitySubstitutionDetector",
-                    description=(
-                        f"Entity '{ent_text}' ({ent_type}) appears in claim "
-                        f"but no {ent_type} entities found in context."
-                    ),
-                    span=(start, end),
-                    reference_text=None,
-                    confidence=confidence,
-                ))
+                if confidence >= self.confidence_threshold:
+                    evidence.append(Evidence(
+                        hallucination_type=HallucinationType.ENTITY_SUBSTITUTION,
+                        source="EntitySubstitutionDetector",
+                        description=(
+                            f"Entity '{ent_text}' ({ent_type}) appears in claim "
+                            f"but no {ent_type} entities found in context."
+                        ),
+                        span=(start, end),
+                        reference_text=None,
+                        confidence=confidence,
+                    ))
                 continue
 
             # Find nearest context entity by string similarity
@@ -194,6 +195,7 @@ class EntitySubstitutionDetector(BaseDetector):
         claim_names = re.findall(pattern, claim)
         context_lower = context.lower()
 
+        confidence = max(0.4, self.confidence_threshold)
         evidence = []
         for name in claim_names:
             if name.lower() not in context_lower and len(name) > 3:
@@ -205,6 +207,6 @@ class EntitySubstitutionDetector(BaseDetector):
                     ),
                     span=None,
                     reference_text=None,
-                    confidence=0.4,  # Low confidence without NER
+                    confidence=max(0.4, self.confidence_threshold),
                 ))
         return evidence
