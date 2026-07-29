@@ -59,6 +59,28 @@ class TestTaxonomy:
         assert fp.is_hallucinated(threshold=0.5) is True
         assert fp.is_hallucinated(threshold=0.9) is False
 
+    def test_is_hallucinated_agrees_with_aggregated_probability(self):
+        # Regression test: is_hallucinated() used to check per-type max
+        # confidence instead of the aggregated hallucination_probability.
+        # Five detectors each at 0.45 (all below the 0.5 threshold
+        # individually) noisy-OR aggregate to ~0.95, so the claim should
+        # be flagged even though no single type crosses the threshold.
+        from hallucinotype.taxonomy import HallucinationFingerprint
+        fp = HallucinationFingerprint(
+            claim="test",
+            context=None,
+            detected_types={
+                HallucinationType.ENTITY_SUBSTITUTION: 0.45,
+                HallucinationType.TEMPORAL_CONFUSION: 0.45,
+                HallucinationType.NUMERICAL_DISTORTION: 0.45,
+                HallucinationType.RELATION_ERROR: 0.45,
+                HallucinationType.NEGATION_FLIP: 0.45,
+            },
+            hallucination_probability=1 - (1 - 0.45) ** 5,
+        )
+        assert fp.hallucination_probability >= 0.5
+        assert fp.is_hallucinated(threshold=0.5) is True
+
     def test_fingerprint_to_dict(self):
         from hallucinotype.taxonomy import HallucinationFingerprint
         fp = HallucinationFingerprint(

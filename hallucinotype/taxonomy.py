@@ -111,8 +111,8 @@ class HallucinationFingerprint(BaseModel):
     judge_response: Optional[str] = None
 
     def is_hallucinated(self, threshold: float = 0.5) -> bool:
-        """True if any detected type exceeds the confidence threshold."""
-        return any(conf >= threshold for conf in self.detected_types.values())
+        """True if the aggregated hallucination probability meets the threshold."""
+        return self.hallucination_probability >= threshold
 
     def top_types(self, n: int = 3) -> list[tuple[HallucinationType, float]]:
         """Return top-n detected types sorted by confidence."""
