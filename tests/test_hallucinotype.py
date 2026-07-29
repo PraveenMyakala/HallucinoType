@@ -213,6 +213,30 @@ class TestNumericalDetector:
         )
         assert evidence == []
 
+    def test_bare_year_not_extracted_as_number(self):
+        # Regression test: bare 4-digit years used to be extracted as plain
+        # numerics, so a year mismatch (e.g. 1200 vs 1800) got flagged by
+        # both NumericalDistortionDetector and TemporalConfusionDetector,
+        # double-counting the same error in noisy-OR aggregation.
+        spans = extract_numerics("The treaty was signed in 1200.")
+        assert spans == []
+
+    def test_year_mismatch_not_flagged_as_numerical_distortion(self):
+        evidence = self.detector.detect(
+            claim="The treaty was signed in 1200.",
+            context="The treaty was signed in 1800."
+        )
+        assert evidence == []
+
+    def test_comma_formatted_four_digit_count_still_extracted(self):
+        # A 4-digit count with a thousands separator is not year-like
+        # (years are never comma-formatted) and should still be caught.
+        evidence = self.detector.detect(
+            claim="The trial enrolled 1,200 patients.",
+            context="The trial enrolled 1,800 patients."
+        )
+        assert len(evidence) > 0
+
 
 # ---------------------------------------------------------------------------
 # Pipeline tests (no LLM calls — rule-based only)

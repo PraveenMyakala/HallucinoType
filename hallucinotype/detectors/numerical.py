@@ -87,6 +87,22 @@ def extract_numerics(text: str) -> list[NumericSpan]:
         if m.group("suffix"):
             unit += m.group("suffix")
 
+        # Bare 4-digit numbers in the plausible year range (e.g. "1989")
+        # are handled by TemporalConfusionDetector. Without this filter,
+        # the same year mismatch gets flagged by both detectors and
+        # double-counted in noisy-OR aggregation. Require no comma/decimal
+        # so genuine 4-digit counts like "1,989 patients" aren't dropped.
+        number_str = m.group("number")
+        looks_like_year = (
+            unit == ""
+            and "," not in number_str
+            and "." not in number_str
+            and len(number_str) == 4
+            and 1000 <= val <= 2100
+        )
+        if looks_like_year:
+            continue
+
         spans.append(NumericSpan(
             raw=raw,
             value=val,
