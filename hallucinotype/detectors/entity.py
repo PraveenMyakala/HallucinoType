@@ -207,6 +207,6 @@ class EntitySubstitutionDetector(BaseDetector):
                     ),
                     span=None,
                     reference_text=None,
-                    confidence=max(0.4, self.confidence_threshold),
+                    confidence=confidence,
                 ))
         return evidence
