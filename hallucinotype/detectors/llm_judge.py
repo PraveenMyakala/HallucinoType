@@ -114,7 +114,7 @@ def _parse_judge_response(raw: str, claim: str) -> tuple[list[Evidence], str]:
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError:
-        match = re.search(r'\{.*?\}', cleaned, re.DOTALL)
+        match = re.search(r'\{.*\}', cleaned, re.DOTALL)
         if match:
             try:
                 data = json.loads(match.group())
