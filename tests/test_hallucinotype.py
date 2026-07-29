@@ -13,6 +13,7 @@ from hallucinotype import __version__
 from hallucinotype.taxonomy import HallucinationType, HallucinationSeverity
 from hallucinotype.detectors.temporal import TemporalConfusionDetector, extract_years
 from hallucinotype.detectors.numerical import NumericalDistortionDetector, extract_numerics
+from hallucinotype.detectors.llm_judge import _parse_judge_response
 from hallucinotype.pipeline import HallucinoTypePipeline, PipelineConfig
 
 
@@ -300,6 +301,78 @@ class TestEvidence:
         )
         assert ev.confidence == 0.85
         assert ev.reference_text == "1989"
+
+
+# ---------------------------------------------------------------------------
+# LLM judge response parsing tests (pure function — no API calls)
+# ---------------------------------------------------------------------------
+
+class TestParseJudgeResponse:
+
+    def test_parses_direct_json(self):
+        raw = (
+            '{"detected": [{"type": "confident_fabrication", "confidence": 0.9, '
+            '"span": "the moon landing was faked", "reference_text": null, '
+            '"explanation": "no basis"}], "reasoning": "clearly fabricated"}'
+        )
+        evidence, reasoning = _parse_judge_response(raw, "the moon landing was faked")
+        assert len(evidence) == 1
+        assert evidence[0].hallucination_type == HallucinationType.CONFIDENT_FABRICATION
+        assert reasoning == "clearly fabricated"
+
+    def test_recovers_json_wrapped_in_prose_with_nested_object(self):
+        # Regression test: a non-greedy `{.*?}` regex fallback used to stop at
+        # the first closing brace it found — the one closing the nested object
+        # inside "detected": [{...}] — truncating the JSON before the outer
+        # object closed and silently dropping the evidence.
+        raw = (
+            "Here is my analysis:\n"
+            '{"detected": [{"type": "confident_fabrication", "confidence": 0.9, '
+            '"span": "the moon landing was faked", "reference_text": null, '
+            '"explanation": "no basis"}], "reasoning": "clearly fabricated"}\n'
+            "Let me know if you need more."
+        )
+        evidence, reasoning = _parse_judge_response(raw, "the moon landing was faked")
+        assert len(evidence) == 1
+        assert evidence[0].hallucination_type == HallucinationType.CONFIDENT_FABRICATION
+        assert evidence[0].confidence == 0.9
+        assert reasoning == "clearly fabricated"
+
+    def test_recovers_json_with_multiple_detections(self):
+        raw = (
+            "```json\n"
+            '{"detected": ['
+            '{"type": "relation_error", "confidence": 0.8, "span": "X acquired Y", '
+            '"reference_text": "Y acquired X", "explanation": "reversed"}, '
+            '{"type": "negation_flip", "confidence": 0.7, "span": "did not show efficacy", '
+            '"reference_text": null, "explanation": "polarity inverted"}'
+            '], "reasoning": "two issues found"}\n'
+            "```"
+        )
+        evidence, reasoning = _parse_judge_response(raw, "X acquired Y and did not show efficacy")
+        assert len(evidence) == 2
+        types = {e.hallucination_type for e in evidence}
+        assert types == {HallucinationType.RELATION_ERROR, HallucinationType.NEGATION_FLIP}
+
+    def test_no_json_returns_empty_evidence(self):
+        raw = "I could not analyze this claim."
+        evidence, reasoning = _parse_judge_response(raw, "some claim")
+        assert evidence == []
+        assert reasoning == raw
+
+    def test_empty_detected_list_returns_no_evidence(self):
+        raw = '{"detected": [], "reasoning": "nothing wrong here"}'
+        evidence, reasoning = _parse_judge_response(raw, "some claim")
+        assert evidence == []
+        assert reasoning == "nothing wrong here"
+
+    def test_unknown_hallucination_type_is_skipped(self):
+        raw = (
+            '{"detected": [{"type": "not_a_real_type", "confidence": 0.9}], '
+            '"reasoning": "n/a"}'
+        )
+        evidence, _ = _parse_judge_response(raw, "some claim")
+        assert evidence == []
 
 
 # ---------------------------------------------------------------------------
