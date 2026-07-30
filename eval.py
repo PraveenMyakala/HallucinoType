@@ -58,9 +58,10 @@ def load_benchmark(path: Path, limit: Optional[int] = None) -> list[dict]:
 def run_hallucinotype(
     entries: list[dict],
     use_llm: bool,
+    use_spacy: bool = False,
     verbose: bool = True,
 ) -> list[dict]:
-    config = PipelineConfig(use_llm_judge=use_llm, use_spacy=False)
+    config = PipelineConfig(use_llm_judge=use_llm, use_spacy=use_spacy)
     pipeline = HallucinoTypePipeline(config)
 
     results = []
@@ -362,6 +363,11 @@ def main():
         help="Run Vectara HHEM baseline (requires: pip install sentence-transformers)",
     )
     parser.add_argument(
+        "--spacy", action="store_true",
+        help="Use spaCy NER for entity_substitution instead of the regex fallback "
+             "(requires: python -m spacy download en_core_web_sm)",
+    )
+    parser.add_argument(
         "--limit", type=int, default=None,
         help="Evaluate only the first N entries (quick test)",
     )
@@ -384,7 +390,7 @@ def main():
     print(f"  {len(entries)} entries loaded.")
 
     print(f"\nRunning HallucinoType ({'rule-based + LLM judge' if args.llm else 'rule-based'})...")
-    ht_results = run_hallucinotype(entries, use_llm=args.llm)
+    ht_results = run_hallucinotype(entries, use_llm=args.llm, use_spacy=args.spacy)
 
     print("Computing keyword-overlap baseline...")
     overlap_preds = keyword_overlap_baseline(entries)
