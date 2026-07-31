@@ -2,7 +2,7 @@
 HallucinoType — Typed hallucination detection for LLMs.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 from hallucinotype.pipeline import HallucinoTypePipeline, PipelineConfig
 from hallucinotype.taxonomy import (
