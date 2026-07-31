@@ -38,7 +38,7 @@ class NumericSpan:
 NUMBER_RE = re.compile(
     r'(?P<currency>\$|€|£)?'
     r'(?P<number>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)'
-    r'\s*(?P<suffix>million|billion|trillion|thousand|M|B|K|%)?',
+    r'\s*(?P<suffix>(?:million|billion|trillion|thousand|M|B|K)\b|%)?',
     re.IGNORECASE
 )
 

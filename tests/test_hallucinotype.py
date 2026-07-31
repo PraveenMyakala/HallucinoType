@@ -183,6 +183,32 @@ class TestNumericalDetector:
         spans = extract_numerics("The company earned $1.5 billion in revenue.")
         assert any(s.value == 1.5e9 for s in spans)
 
+    def test_number_before_word_not_treated_as_unit(self):
+        # Regression test: NUMBER_RE's suffix group had no word boundary after
+        # the single-letter units (M/B/K), so a number followed by a word
+        # starting with b/m/k (e.g. "1996 by", "3.3 mm", "10 mmHg") had that
+        # first letter swallowed as a bogus unit suffix. This let bare years
+        # escape the year filter (unit != "") and inflated values that
+        # happened to be followed by "M"/"B"/"K"-starting words.
+        for text, expected_value in [
+            ("founded in 1996 by Larry Page", None),   # year swallows "b" of "by"
+            ("rising at 3.3 mm per year", 3.3),          # "m" of "mm" swallowed
+            ("pressure by 10 mmHg", 10.0),               # "m" of "mmHg" swallowed
+        ]:
+            spans = extract_numerics(text)
+            if expected_value is None:
+                assert spans == [], f"{text!r} should yield no spans (bare year), got {spans}"
+            else:
+                assert len(spans) == 1
+                assert spans[0].value == expected_value
+                assert spans[0].unit == ""
+
+    def test_suffix_still_parses_with_word_boundary_fix(self):
+        # Legitimate suffixes must still work after requiring a word boundary.
+        assert extract_numerics("Revenue grew to 1.5M users.")[0].value == 1.5e6
+        assert extract_numerics("The deal was worth $500K.")[0].value == 500_000.0
+        assert extract_numerics("A $2 trillion economy.")[0].value == 2e12
+
     def test_clear_number_mismatch(self):
         evidence = self.detector.detect(
             claim="The trial showed a 78% success rate.",
