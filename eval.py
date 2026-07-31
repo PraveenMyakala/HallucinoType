@@ -347,7 +347,7 @@ def print_report(
             llm_r += m["recall"]
             llm_f1 += m["f1"]
 
-    n = len(ALL_TYPES) - 1  # exclude "none"
+    n = len(ALL_TYPES)  # ALL_TYPES is built from HallucinationType only — "none" was never in it
     n_rule = len(RULE_TYPES)
     n_llm = n - n_rule
 
