@@ -141,6 +141,51 @@ def try_hhem_baseline(entries: list[dict]) -> Optional[list[bool]]:
 
 
 # ---------------------------------------------------------------------------
+# SelfCheckGPT baseline (optional — needs torch + transformers + selfcheckgpt)
+# ---------------------------------------------------------------------------
+
+def try_selfcheckgpt_baseline(entries: list[dict]) -> Optional[list[bool]]:
+    """
+    Adapted SelfCheckGPT (Manakul et al., 2023) NLI variant.
+
+    SelfCheckGPT was designed for black-box hallucination detection via
+    consistency across multiple stochastic resamples of an LLM, with no
+    reference text. Our benchmark is static (claim, context) pairs with
+    no resampling available, so this adapts SelfCheckNLI to a single-
+    reference setting: the claim is scored as one "sentence" against the
+    context as the sole "sampled passage", using the same underlying NLI
+    contradiction model (potsawee/deberta-v3-large-mnli) the original
+    method uses. This is a simplification, not the literal multi-sample
+    method — treat it as an NLI-contradiction baseline, not "real" SelfCheckGPT.
+    """
+    try:
+        from selfcheckgpt.modeling_selfcheck import SelfCheckNLI  # type: ignore
+    except ImportError:
+        print("  selfcheckgpt not installed — skipping SelfCheckGPT.")
+        print("  Install with: pip install torch transformers selfcheckgpt")
+        return None
+
+    try:
+        print("  Loading potsawee/deberta-v3-large-mnli (SelfCheckNLI)...")
+        checker = SelfCheckNLI(device="cpu")
+        preds = []
+        for i, e in enumerate(entries):
+            if (i + 1) % 25 == 0:
+                print(f"    {i + 1}/{len(entries)}", end="\r", flush=True)
+            scores = checker.predict(
+                sentences=[e["claim"]],
+                sampled_passages=[e["context"]],
+            )
+            # SelfCheckNLI: probability of contradiction (hallucination), 0-1
+            preds.append(float(scores[0]) > 0.5)
+        print(f"    {len(entries)}/{len(entries)}  ")
+        return preds
+    except Exception as exc:
+        print(f"  SelfCheckGPT failed: {exc}")
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Metrics
 # ---------------------------------------------------------------------------
 
@@ -222,6 +267,7 @@ def print_report(
     use_llm: bool,
     overlap_preds: list[bool],
     hhem_preds: Optional[list[bool]],
+    selfcheckgpt_preds: Optional[list[bool]] = None,
 ) -> dict:
     mode = "rule-based + LLM judge" if use_llm else "rule-based only"
     n_hal = sum(1 for e in entries if e["ground_truth_type"] != NONE_LABEL)
@@ -258,6 +304,11 @@ def print_report(
         print(f"  {'HHEM (Vectara, baseline)':<30} "
               f"{hh_m['precision']:>6.3f}  {hh_m['recall']:>6.3f}  "
               f"{hh_m['f1']:>6.3f}  {hh_m['accuracy']:>6.3f}")
+    if selfcheckgpt_preds is not None:
+        sc_m = binary_metrics(gt_bin, selfcheckgpt_preds)
+        print(f"  {'SelfCheckGPT-NLI (adapted, baseline)':<30} "
+              f"{sc_m['precision']:>6.3f}  {sc_m['recall']:>6.3f}  "
+              f"{sc_m['f1']:>6.3f}  {sc_m['accuracy']:>6.3f}")
     print(SEP)
 
     # ---- Per-type ----
@@ -363,6 +414,11 @@ def main():
         help="Run Vectara HHEM baseline (requires: pip install sentence-transformers)",
     )
     parser.add_argument(
+        "--selfcheckgpt", action="store_true",
+        help="Run adapted SelfCheckGPT-NLI baseline (requires: "
+             "pip install torch transformers selfcheckgpt)",
+    )
+    parser.add_argument(
         "--spacy", action="store_true",
         help="Use spaCy NER for entity_substitution instead of the regex fallback "
              "(requires: python -m spacy download en_core_web_sm)",
@@ -400,7 +456,14 @@ def main():
         print("Running HHEM baseline...")
         hhem_preds = try_hhem_baseline(entries)
 
-    summary = print_report(entries, ht_results, args.llm, overlap_preds, hhem_preds)
+    selfcheckgpt_preds = None
+    if args.selfcheckgpt:
+        print("Running SelfCheckGPT-NLI baseline...")
+        selfcheckgpt_preds = try_selfcheckgpt_baseline(entries)
+
+    summary = print_report(
+        entries, ht_results, args.llm, overlap_preds, hhem_preds, selfcheckgpt_preds
+    )
 
     if args.output:
         payload = {
