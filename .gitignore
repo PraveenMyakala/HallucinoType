@@ -31,5 +31,10 @@ Thumbs.db
 !README.md
 !SECURITY.md
 !CONTRIBUTING.md
+!RESEARCH_CONTEXT.md
+!EVAL_RESULTS.md
 
 output.txt
+
+# Secrets
+.env
