@@ -195,7 +195,7 @@ pip install -e ".[dev]"
 pytest tests/ -v -m "not slow"
 ```
 
-All 35 tests are rule-based and run in under 1 second with no API key.
+All 47 tests are rule-based and run in under 2 seconds with no API key.
 
 ---
 
@@ -235,6 +235,37 @@ HallucinoTypePipeline
 ```
 
 Rule-based detectors run first (fast, no cost). The LLM judge handles semantically complex types that rules can't catch.
+
+---
+
+## Evaluation
+
+`data/benchmark_v0.jsonl` is a labeled benchmark of 250 `(claim, context, ground_truth_type)`
+examples covering all 8 taxonomy types plus 35 clean (non-hallucinated) negatives.
+`eval.py` runs the pipeline against it and reports binary precision/recall/F1,
+per-type precision/recall/F1, a confusion matrix, and comparisons against
+baselines.
+
+```bash
+# Rule-based only, no API key needed
+python eval.py --spacy
+
+# Full pipeline (rule-based + LLM judge) + external baselines
+python eval.py --spacy --llm --hhem --selfcheckgpt
+```
+
+| Flag | Adds |
+|---|---|
+| `--spacy` | Real spaCy NER for `entity_substitution` instead of the weaker regex fallback (requires `python -m spacy download en_core_web_sm`) |
+| `--llm` | The LLM judge, covering `source_blending`, `confident_fabrication`, `relation_error`, `negation_flip`, `overgeneralization` (requires `ANTHROPIC_API_KEY`) |
+| `--hhem` | Vectara's HHEM as a binary baseline (requires `pip install sentence-transformers`) |
+| `--selfcheckgpt` | An adapted SelfCheckGPT-NLI baseline (requires `pip install torch transformers selfcheckgpt`) |
+
+With the full pipeline enabled, HallucinoType scores **0.988 binary F1 /
+0.980 accuracy** on the benchmark, ahead of both baselines. Full
+methodology, known limitations (e.g. the LLM judge over-applying
+`confident_fabrication` relative to more specific types), and a worked
+multi-detector example are in [EVAL_RESULTS.md](EVAL_RESULTS.md).
 
 ---
 
@@ -306,9 +337,10 @@ git push origin v0.X.0               # triggers pipeline again
 
 - [x] `v0.1` Core package: 8-type taxonomy, 4 detectors, typed fingerprints, 35 tests
 - [x] `v0.2` PyPI package, automated CI/CD release pipeline
-- [ ] `v0.3` Annotated benchmark dataset (typed, claim-context pairs with ground truth)
-- [ ] `v0.4` Evaluation vs binary baselines (Vectara HHEM, SelfCheckGPT)
-- [ ] `v0.5` LangChain / LlamaIndex evaluation callbacks
+- [x] `v0.3` Annotated benchmark dataset — 250 typed claim-context pairs with ground truth (`data/benchmark_v0.jsonl`)
+- [x] `v0.4` Evaluation vs binary baselines (Vectara HHEM, adapted SelfCheckGPT-NLI) — see [EVAL_RESULTS.md](EVAL_RESULTS.md)
+- [x] `v1.0` 47 tests, 6 correctness bug fixes, real evaluation numbers (0.988 binary F1)
+- [ ] `v1.1` LangChain / LlamaIndex evaluation callbacks
 
 ---
 
