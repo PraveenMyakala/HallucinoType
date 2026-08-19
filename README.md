@@ -195,7 +195,9 @@ pip install -e ".[dev]"
 pytest tests/ -v -m "not slow"
 ```
 
-All 47 tests are rule-based and run in under 2 seconds with no API key.
+All 53 tests are rule-based and run in under 2 seconds with no API key
+(integration tests for `hallucinotype.integrations` skip automatically if
+langchain-core / llama-index-core aren't installed).
 
 ---
 
@@ -266,6 +268,64 @@ With the full pipeline enabled, HallucinoType scores **0.988 binary F1 /
 methodology, known limitations (e.g. the LLM judge over-applying
 `confident_fabrication` relative to more specific types), and a worked
 multi-detector example are in [EVAL_RESULTS.md](EVAL_RESULTS.md).
+
+---
+
+## LangChain / LlamaIndex Integration
+
+Thin wrappers to run HallucinoType as an eval hook inside existing pipelines.
+Neither framework is a hard dependency — install the one you need:
+
+```bash
+pip install "hallucinotype[langchain]"
+pip install "hallucinotype[llamaindex]"
+```
+
+### LangChain
+
+`HallucinoTypeCallbackHandler` fingerprints every LLM completion in a run.
+Pass context explicitly, or leave it unset and it's captured automatically
+from the most recent retriever call (RAG chains):
+
+```python
+from hallucinotype.integrations.langchain import HallucinoTypeCallbackHandler
+
+handler = HallucinoTypeCallbackHandler(threshold=0.5)
+chain.invoke({"question": "..."}, config={"callbacks": [handler]})
+
+for fp in handler.fingerprints:
+    if fp.is_hallucinated():
+        print(fp.summary())
+```
+
+`HallucinoTypeStringEvaluator` wraps the pipeline as a prediction/reference
+evaluator for LangSmith `evaluate()` runs or standalone scripts:
+
+```python
+from hallucinotype.integrations.langchain import HallucinoTypeStringEvaluator
+
+evaluator = HallucinoTypeStringEvaluator()
+result = evaluator.evaluate_strings(prediction=answer, reference=context)
+# {"key": "hallucinotype", "score": 0.85, "value": "none", "comment": "..."}
+```
+
+### LlamaIndex
+
+`HallucinoTypeEvaluator` implements LlamaIndex's `BaseEvaluator` interface,
+so it plugs into `evaluate()`, `evaluate_response()`, and `BatchEvalRunner`
+alongside built-in evaluators like `FaithfulnessEvaluator`:
+
+```python
+from hallucinotype.integrations.llamaindex import HallucinoTypeEvaluator
+
+evaluator = HallucinoTypeEvaluator(threshold=0.5)
+result = evaluator.evaluate(
+    query=query,
+    response=response.response,
+    contexts=[node.get_content() for node in response.source_nodes],
+)
+print(result.passing, result.score, result.feedback)
+```
 
 ---
 
@@ -340,7 +400,7 @@ git push origin v0.X.0               # triggers pipeline again
 - [x] `v0.3` Annotated benchmark dataset — 250 typed claim-context pairs with ground truth (`data/benchmark_v0.jsonl`)
 - [x] `v0.4` Evaluation vs binary baselines (Vectara HHEM, adapted SelfCheckGPT-NLI) — see [EVAL_RESULTS.md](EVAL_RESULTS.md)
 - [x] `v1.0` 47 tests, 6 correctness bug fixes, real evaluation numbers (0.988 binary F1)
-- [ ] `v1.1` LangChain / LlamaIndex evaluation callbacks
+- [x] `v1.1` LangChain / LlamaIndex evaluation callbacks
 
 ---
 

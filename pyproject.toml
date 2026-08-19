@@ -38,6 +38,12 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.4.0",
 ]
+langchain = [
+    "langchain-core>=0.3.0",
+]
+llamaindex = [
+    "llama-index-core>=0.11.0",
+]
 
 [project.scripts]
 hallucinotype = "hallucinotype.cli:main"
