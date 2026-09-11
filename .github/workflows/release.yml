@@ -79,10 +79,41 @@ jobs:
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
 
-  # ── 4. Create a GitHub Release with the built assets attached ─────────────
+  # ── 4. Smoke-test the just-published package straight from PyPI ───────────
+  smoke-test:
+    name: Smoke test from PyPI (Python ${{ matrix.python-version }})
+    needs: publish
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install from PyPI (retry — index can lag a few seconds after publish)
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for i in 1 2 3 4 5 6; do
+            pip install "hallucinotype==$VERSION" && break
+            echo "Attempt $i failed, PyPI index may still be propagating — retrying in 20s..."
+            sleep 20
+          done
+
+      - name: Verify import and console script
+        working-directory: /tmp
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python -c "import hallucinotype; assert hallucinotype.__version__ == '$VERSION', hallucinotype.__version__"
+          hallucinotype --version
+
+  # ── 5. Create a GitHub Release with the built assets attached ─────────────
   github-release:
     name: Create GitHub Release
-    needs: publish
+    needs: [publish, smoke-test]
     runs-on: ubuntu-latest
     permissions:
       contents: write
