@@ -9,7 +9,7 @@ HallucinoType tells you *what kind* — which changes how you fix it.
 [![CI](https://github.com/PraveenMyakala/HallucinoType/actions/workflows/ci.yml/badge.svg)](https://github.com/PraveenMyakala/HallucinoType/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![PyPI Downloads](https://static.pepy.tech/personalized-badge/hallucinotype?period=total&units=NONE&left_color=BLACK&right_color=ORANGE&left_text=downloads)](https://pepy.tech/projects/hallucinotype)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/hallucinotype?period=total&units=NONE&left_color=GREY&right_color=ORANGE&left_text=downloads)](https://pepy.tech/projects/hallucinotype)
 
 ---
 
